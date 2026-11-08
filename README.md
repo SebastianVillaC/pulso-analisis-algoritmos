@@ -3,11 +3,10 @@
 **Informe técnico — Proyecto final de Análisis de Algoritmos (2026-2)**
 
 | | |
-|---|---|
+| --- | --- |
 | **Caso asignado** | Caso 2 — Plataforma Pulso (Secretaría de Salud departamental) |
 | **Integrantes** | Sebastian Villa Castillo · Jhon Eduardo Zabala Garzon · Brayan Alexis Arango Orrego · David Morales Vargas |
 | **Operaciones trabajadas** | Op. 3 — Programación de las jornadas de las unidades móviles (Laboratorio 4) · Op. 4 — Vigilancia de la calidad de los laboratorios |
-| **Uso de IA** | Redacción apoyada por un asistente de IA, con autorización del docente. El equipo revisó el texto, las cifras y las fuentes |
 
 ---
 
@@ -22,7 +21,7 @@ _Pendiente para la entrega del 23 de noviembre._
 #### Operación 3 — Programación de las jornadas de las unidades móviles
 
 | Elemento | Descripción |
-|---|---|
+| --- | --- |
 | **Entrada** | Solicitudes del mes de una subregión, en orden de llegada. Cada una es una tupla `(inicio, fin, pacientes)`: inicio y fin en minutos desde el inicio del mes, con `fin > inicio` y el desplazamiento incluido; `pacientes` es el número de pacientes de alto riesgo pendientes en el municipio (entero ≥ 0) |
 | **Tamaño** | n = 40 a 120 solicitudes por subregión y mes; 9 subregiones (9 instancias independientes por mes) |
 | **Salida** | El subconjunto de solicitudes aceptadas, ordenado por hora de inicio, que **maximiza el total de pacientes de alto riesgo atendidos** |
