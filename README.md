@@ -63,6 +63,10 @@ _Pendiente para la entrega del 23 de noviembre._
 2. **Regla actual:** se recorren las solicitudes en el orden de la lista (orden de llegada) y se acepta cada una que no se cruce con ninguna ya aceptada. Nunca se revoca una aceptación.
 3. Cada subregión se programa por separado, con una unidad por subregión.
 4. Una solicitud con 0 pacientes es válida. Si hay varios óptimos con el mismo valor, cualquiera es correcto.
+5. Datos sintéticos ([`datos.py`](src/jornadas_unidades/datos.py)):
+   - Unas 4 solicitudes por día, la densidad del mes más cargado (120 en 30 días).
+   - Inicio entre las 06:00 y las 16:00 y duración de 2 a 10 h, en pasos de 30 min.
+   - De 1 a 80 pacientes por solicitud.
 
 **Operación 4:** _Pendiente para la entrega del 23 de noviembre._
 
@@ -170,6 +174,7 @@ SELECCIONAR-JORNADAS(S)
 
 **Resultado:** M2 (06–09) + M3 (09–13) + M5 (13–17) = **30 pacientes**.
 - Las tres jornadas solo se tocan en los extremos, así que no se cruzan.
+- [`pruebas.py`](src/jornadas_unidades/pruebas.py) verifica exactamente este resultado.
 
 **Cómo reduce el consumo energético.**
 - Frente a la única forma de garantizar el óptimo sin PD, que es la búsqueda exhaustiva con Θ(n·2ⁿ), la PD pasa de un tiempo literalmente inalcanzable a microsegundos (sección 4.1).
@@ -184,7 +189,37 @@ _Pendiente para la entrega del 23 de noviembre._
 
 ## 3. Implementación
 
-_Pendiente._
+**Tecnologías.**
+- Python 3.10 o superior.
+- Los algoritmos usan solo la biblioteca estándar y están escritos a mano. Las operaciones 3 y 4 no usan bibliotecas de optimización.
+- `matplotlib` se usa solo para las gráficas.
+- El código cumple PEP 8, revisado con `pycodestyle`, y tiene type hints y docstrings estilo Google en cada función.
+
+**Estructura del repositorio.**
+
+```
+src/
+├── jornadas_unidades/        # Op. 3 (Laboratorio 4)
+│   ├── modelo.py             # Jornada, se_cruzan, contador
+│   ├── estrategia.py         # PD de intervalos ponderados, hay_cruce, voraz de contraste
+│   ├── exhaustivo.py         # 2ⁿ subconjuntos
+│   ├── regla_actual.py       # orden de llegada
+│   ├── datos.py · pruebas.py · medicion.py
+graficas/<operacion>/*.png    resultados/<operacion>/{mediciones.csv, resumen.md}
+```
+
+**Código de la operación 3:** [`estrategia.py`](src/jornadas_unidades/estrategia.py) · [`exhaustivo.py`](src/jornadas_unidades/exhaustivo.py) · [`regla_actual.py`](src/jornadas_unidades/regla_actual.py) · [`pruebas.py`](src/jornadas_unidades/pruebas.py) · [`modelo.py`](src/jornadas_unidades/modelo.py)
+
+**Decisiones de implementación relevantes.**
+1. **La regla de cruce vive en un solo lugar.**
+   - `se_cruzan(a, b) = a.inicio < b.fin and b.inicio < a.fin` (tocarse no es cruce), junto con el `<=` de `contar_compatibles`.
+   - La estrategia, la exhaustiva, la regla actual y `hay_cruce` usan la misma convención.
+   - Comprobamos que si se cambia `<=` por `<` en la búsqueda binaria, las pruebas fallan.
+2. **La búsqueda binaria está escrita a mano** (`contar_compatibles`), con el rango limitado a las jornadas anteriores a j.
+3. **La salida se devuelve ordenada por inicio**, como exige el esqueleto, aunque la PD trabaja ordenada por fin.
+4. **La entrada nunca se modifica.** Se usa `sorted` (copia), no `.sort()`, y las tuplas son inmutables. Las pruebas comparan la entrada con una copia después de cada llamada.
+5. **El conteo de operaciones es opcional.** Cada función recibe `contador=None`. El cronómetro corre sin contador, y el conteo se hace en una ejecución aparte, para que contar no infle el tiempo.
+6. **Exhaustiva de la op. 3.** Ordena por inicio y abandona un subconjunto en cuanto encuentra un cruce. Así se mantiene exacta y es más rápida en promedio; en el peor caso sigue siendo Θ(n·2ⁿ).
 
 ---
 
@@ -202,7 +237,23 @@ _Pendiente._
 
 #### Verificación (las estrategias cumplen las restricciones del negocio)
 
-_Pendiente._
+[`pruebas.py`](src/jornadas_unidades/pruebas.py) se ejecuta sin errores. Comprueba:
+- **Casos límite:**
+  - entrada vacía;
+  - una sola solicitud;
+  - ninguna se cruza (en cadena, tocándose: se aceptan todas);
+  - todas se cruzan (queda la de más pacientes);
+  - jornadas que se tocan (no es cruce) frente a jornadas solapadas un minuto (sí es cruce);
+  - pacientes en cero.
+- El **ejemplo a mano**: M2 + M3 + M5 = 30.
+- El **contraejemplo de la regla actual**: 9 frente a 30.
+- El **contraejemplo del voraz**: 9 frente a 50. Con pesos iguales, el voraz sí es óptimo.
+- **200 instancias aleatorias** (semilla 2026, hasta 12 solicitudes). En todas:
+  - la PD y la exhaustiva obtienen el mismo número de pacientes;
+  - **ninguna programación tiene dos jornadas que se crucen**;
+  - lo reconstruido suma el óptimo;
+  - la entrada no se modifica;
+  - la regla actual nunca supera a la PD.
 
 #### Resultados
 
@@ -246,6 +297,8 @@ La regla falla porque la primera solicitud que llega bloquea a las que se cruzan
 Con pesos distintos falla. Ejemplo: X (06–12, 50), Y (06–08, 3), Z (08–10, 3) y W (10–12, 3).
 - El voraz elige Y, Z y W: **3 jornadas y 9 pacientes**.
 - La PD elige X: **1 jornada y 50 pacientes**.
+
+Ambos casos se verifican en las pruebas.
 
 ### 5.2 Operación 4 y comparación global
 
