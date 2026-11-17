@@ -8,6 +8,9 @@
 | **Integrantes** | Sebastian Villa Castillo · Jhon Eduardo Zabala Garzon · Brayan Alexis Arango Orrego · David Morales Vargas |
 | **Operaciones trabajadas** | Op. 3 — Programación de las jornadas de las unidades móviles (Laboratorio 4) · Op. 4 — Vigilancia de la calidad de los laboratorios |
 
+**Resumen.**
+- **Op. 3 (jornadas):** la Secretaría asigna hoy por orden de llegada. Proponemos programación dinámica de intervalos ponderados, que maximiza los pacientes de alto riesgo atendidos. En meses sintéticos atiende un **36 % más de pacientes** que la regla actual, en menos de un milisegundo por mes.
+
 ---
 
 ## 1. Análisis del problema
@@ -227,13 +230,31 @@ graficas/<operacion>/*.png    resultados/<operacion>/{mediciones.csv, resumen.md
 
 ### 4.0 Método experimental (común a todas las operaciones)
 
-_Pendiente._
+- **Datos:** sintéticos, generados con `random.Random(semilla)`, con semilla 2026 + n. En cada tamaño, **todas las soluciones resuelven la misma instancia**.
+- **Tiempo:** `time.perf_counter()` alrededor de la llamada, sin incluir la generación de datos. Se promedian **5 repeticiones**.
+- **Operaciones elementales:** se cuentan con un contador propio, en una ejecución aparte.
+  - Op. 3, PD: comparaciones de la búsqueda binaria y celdas de M.
+  - Op. 3, exhaustiva: subconjuntos y comparaciones.
+  - Op. 3, regla actual: comparaciones contra las jornadas aceptadas.
+- **Verificación dentro del experimento:** en cada tamaño, todas las soluciones que corren deben coincidir en el valor óptimo (`assert`).
+- **Gráficas:** escala log-log, porque en ella una curva de la forma n^k se ve como una recta de pendiente k y una exponencial se ve casi vertical.
+- Los tiempos absolutos dependen del equipo en que se mide (un portátil con macOS y Python 3.14). La forma de las curvas y los factores al duplicar n no dependen de él.
 
 ### 4.1 Operación 3
 
 #### Complejidad temporal y espacial
 
-_Pendiente._
+| Solución | Tiempo | Espacio | Justificación |
+|---|---|---|---|
+| **PD intervalos ponderados** | **Θ(n log n)** | Θ(n) | Ordenar Θ(n log n), más n búsquedas binarias Θ(log n), más llenar M y reconstruir Θ(n). Guarda la lista ordenada, p y M |
+| Exhaustiva | Θ(n·2ⁿ) | Θ(n) | 2ⁿ subconjuntos, cada uno revisado en hasta n pasos. Solo guarda el mejor |
+| Regla actual (llegada) | Θ(n·a) ⊆ Θ(n²) | Θ(n) | Cada solicitud se compara con las *a* ya aceptadas, y *a* crece proporcionalmente con n |
+| Voraz por jornadas | Θ(n log n) | Θ(n) | Ordenar más un recorrido |
+
+**Contraste.**
+- La PD y el voraz tienen la misma complejidad: optimizar **pacientes** en lugar de **jornadas** no cuesta más.
+- La exhaustiva es exponencial: cada solicitud adicional duplica el trabajo.
+- La regla actual, además de dar peores resultados, es asintóticamente más lenta que la PD.
 
 #### Verificación (las estrategias cumplen las restricciones del negocio)
 
@@ -255,9 +276,83 @@ _Pendiente._
   - la entrada no se modifica;
   - la regla actual nunca supera a la PD.
 
+En la medición, la PD y la exhaustiva coinciden en todos los tamaños de 4 a 24.
+
 #### Resultados
 
-_Pendiente._
+Medición: [`datos.py`](src/jornadas_unidades/datos.py) y [`medicion.py`](src/jornadas_unidades/medicion.py). Datos: [`mediciones.csv`](resultados/jornadas_unidades/mediciones.csv) y [`resumen.md`](resultados/jornadas_unidades/resumen.md).
+- Exhaustiva: n = 4, 6, …, 24.
+- PD y voraz: además 40, 120, 250, 500 y de 1.000 a 128.000, duplicando.
+- Regla actual: hasta 16.000.
+
+![Op. 3: tiempo frente a n](graficas/jornadas_unidades/tiempo_vs_n.png)
+
+![Op. 3: operaciones frente a n](graficas/jornadas_unidades/operaciones_vs_n.png)
+
+| n | PD | Exhaustiva | Regla actual | Voraz |
+|---|---|---|---|---|
+| 10 | 3,3 µs · 32 ops | 183 µs · 3.232 ops | 1,0 µs · 15 ops | 0,9 µs · 10 ops |
+| 20 | 7,9 µs · 81 ops | 0,204 s · 3.635.272 ops | 3,8 µs · 63 ops | 2,5 µs · 20 ops |
+| 24 | 9,4 µs · 102 ops | **4,17 s** · 65.147.904 ops | 8,3 µs · 91 ops | 4,1 µs · 24 ops |
+| 120 (real) | **54 µs** · 758 ops | — | 105 µs · 2.557 ops | 12,5 µs · 120 ops |
+| 16.000 | 14,1 ms | — | 1,50 s | 3,3 ms |
+| 128.000 | 143 ms | — | — | 38 ms |
+
+**Cuánto mejora el resultado.** Se promediaron 200 meses sintéticos por tamaño ([`pacientes.csv`](resultados/jornadas_unidades/pacientes.csv)):
+
+![Op. 3: pacientes atendidos por estrategia](graficas/jornadas_unidades/pacientes_por_estrategia.png)
+
+| n (solicitudes/mes) | PD: pacientes (jornadas) | Regla actual | Voraz por jornadas | Mejora PD frente a la actual |
+|---|---|---|---|---|
+| 40 | 840,6 (15,8) | 616,4 (14,8) | 679,4 (16,4) | **+36,4 %** |
+| 80 | 1.660,2 (31,9) | 1.217,6 (30,2) | 1.329,7 (33,1) | **+36,4 %** |
+| 120 | 2.484,7 (47,6) | 1.824,2 (45,0) | 1.986,9 (49,1) | **+36,2 %** |
+
+- El voraz hace **más jornadas** que la PD (49,1 frente a 47,6), pero atiende **500 pacientes menos**. Es la evidencia empírica de que los dos criterios son problemas distintos.
+- En el mes más cargado, la PD atiende en promedio **≈ 660 pacientes de alto riesgo más por subregión**, unos 5.900 más al mes en las 9 subregiones. Es una estimación con datos sintéticos.
+
+#### Lo medido frente a lo esperado
+
+| Solución | n → 2n | Factor tiempo | Factor operaciones | Esperado por la complejidad |
+|---|---|---|---|---|
+| Exhaustiva | 8 → 16 | 259 | 277 | (16·2¹⁶)/(8·2⁸) = 512 |
+| Exhaustiva | 10 → 20 | 1.115 | 1.125 | 2.048 |
+| Exhaustiva | 12 → 24 | 5.320 | 4.640 | 8.192 |
+| PD | 10 → 20 | 2,42 | 2,53 | (20 log 20)/(10 log 10) = 2,60 |
+| PD | 1.000 → 2.000 | 1,98 | 2,21 | 2,20 |
+| PD | 64.000 → 128.000 | 2,18 | 2,13 | 2,13 |
+| Regla actual | 8.000 → 16.000 | 3,99 | 3,97 | 4,00 |
+| Voraz | 64.000 → 128.000 | 2,54 | 2,00 | 2,13 |
+
+- **PD:** al duplicar n, las operaciones crecen ×2,13 a ×2,21 y el tiempo ×2,0 a ×2,4, lo esperado para n log n (≈ ×2,1 a ×2,2). **Coincide.** Las pequeñas diferencias en tiempo son ruido del sistema y efectos de caché y del intérprete cuando se miden micro y milisegundos; el conteo de operaciones, que no tiene ruido, coincide casi exacto.
+- **Regla actual:** ×3,99 en tiempo y ×3,97 en operaciones, con ×4 esperado. **Comportamiento cuadrático confirmado.** No solo da peores resultados, también cuesta más que la PD: a n = 16.000 es 100 veces más lenta.
+- **Exhaustiva:** el factor exponencial **sí aparece**. Al sumar 10 solicitudes el trabajo se multiplica por más de 1.000 (≈ 2¹⁰), y al sumar 12, por más de 4.600. La curva es casi vertical en la gráfica.
+  - Sale **por debajo** del peor caso n·2ⁿ porque la implementación abandona cada subconjunto en el primer cruce.
+  - Con solicitudes que se cruzan a menudo, en promedio revisa pocos elementos por subconjunto. El factor n del peor caso solo aparecería si casi ningún subconjunto tuviera cruces.
+  - Por eso lo medido se parece más a c·2ⁿ multiplicado por un factor que crece lentamente. Usar n·2ⁿ para extrapolar es, por lo tanto, una cota conservadora en la dirección correcta: hace más largo el tiempo de la exhaustiva y no favorece a la PD.
+
+#### Escala real, ventana operativa y energía
+
+- **Volumen real:** n = 120 solicitudes por subregión (el peor mes), 9 subregiones al mes, **108 ejecuciones al año**.
+- **Ventana:** el caso no fija una para esta operación, porque hoy se hace a mano. Tomamos como referencia la **ventana nocturna de 4 h (01:00–05:00)** del mismo servidor: si la programación mensual cabe ahí, puede correr la misma noche de cierre de mes sin desplazar a las ops. 1 y 2.
+- **Extrapolación:** n = 120 está dentro del rango medido para la PD y la regla actual, así que no hace falta extrapolar esas dos.
+  - Para la exhaustiva se justificó la forma de la curva antes de extrapolar, en vez de usar una regla de tres: T(n) = c·n·2ⁿ.
+  - Con T(24) = 4,17 s se obtiene c = 4,17 / (24·2²⁴) ≈ 1,04 × 10⁻⁸ s.
+
+| Solución | Por subregión (n = 120) | Por mes (× 9) | ¿Cabe en 4 h? | kWh/mes | kWh/año |
+|---|---|---|---|---|---|
+| **PD** | 54 µs | 0,48 ms | **Sí** | 5,1 × 10⁻⁸ | 6,1 × 10⁻⁷ |
+| Regla actual | 105 µs | 0,95 ms | Sí | 1,0 × 10⁻⁷ | 1,2 × 10⁻⁶ |
+| Exhaustiva | **5,2 × 10²² años** | — | **Nunca termina** | — | — |
+
+- La exhaustiva **no terminaría nunca en la práctica**.
+  - Con n = 40, el mes más liviano, ya tarda ≈ 126 h, así que ni ese mes cabe en la ventana.
+  - Con n = 120 tardaría unas 3,8 × 10¹² veces la edad del universo.
+  - Su consumo teórico (≈ 1,9 × 10²⁸ kWh al año) carece de sentido físico: simplemente no es una opción. Por eso existe hoy una regla simplificada.
+- **Diferencia de energía entre la regla actual y la PD:** ≈ 0,38 kW × (0,95 − 0,48) ms × 12 meses ≈ **6 × 10⁻⁷ kWh al año**, despreciable. Son estimaciones; el cálculo es kWh = kW × h.
+- En esta operación el beneficio **no es energético sino de resultado**: +36 % de pacientes de alto riesgo valorados con el mismo cómputo. El ahorro de recursos real está en dos lugares:
+  1. Hace viable un óptimo exacto que con fuerza bruta sería imposible.
+  2. Reemplaza el trabajo manual con hojas de cálculo.
 
 ### 4.2 Operación 4
 
@@ -300,6 +395,23 @@ Con pesos distintos falla. Ejemplo: X (06–12, 50), Y (06–08, 3), Z (08–10,
 
 Ambos casos se verifican en las pruebas.
 
+**Ventajas y limitaciones.**
+
+| Estrategia | Ventajas | Limitaciones |
+|---|---|---|
+| **PD intervalos ponderados** | Óptima en pacientes; Θ(n log n); determinista y auditable; los pesos pueden ser cualquier prioridad (no solo pacientes) | Hay que decidir y declarar el criterio; puede dejar fuera repetidamente a municipios pequeños |
+| Exhaustiva | Exacta, sin supuestos; sirve de verificador | Exponencial: inviable con más de ~30 solicitudes |
+| Regla actual | Simple, "justa" en el sentido de quién pide primero | 36 % menos pacientes; Θ(n²); premia la rapidez para pedir, no la necesidad |
+| Voraz por jornadas | Óptima en número de jornadas; la más rápida | Ignora los pacientes: −20 % frente a la PD |
+
+**Recomendación para la op. 3.** Adoptar la **programación dinámica de intervalos ponderados**.
+- **Ganancia:** +36 % de pacientes de alto riesgo valorados con las mismas unidades móviles, con un resultado exacto y reproducible en menos de un milisegundo por mes.
+- **Riesgos y límites que la Secretaría debe conocer:**
+  - Optimizar pacientes puede dejar siempre fuera a municipios pequeños. La sección 6.2 propone una mitigación.
+  - El resultado depende de que "pacientes pendientes" esté bien reportado: un municipio que exagere su cifra desplaza a otros.
+  - El modelo supone una unidad por subregión. Si una subregión tuviera dos o más unidades, el problema pasaría a ser de programación en varias máquinas y la recurrencia tendría que cambiar.
+  - Si el volumen creciera, el costo sigue siendo Θ(n log n): incluso 100 veces más solicitudes se resolverían en menos de un segundo.
+
 ### 5.2 Operación 4 y comparación global
 
 _Pendiente para la entrega del 23 de noviembre._
@@ -310,7 +422,9 @@ _Pendiente para la entrega del 23 de noviembre._
 
 ### 6.1 Consumo energético
 
-_Pendiente._
+**Operación 3** (ver la sección 4.1): con 108 ejecuciones al año en el servidor de 0,38 kW, la regla actual consume ≈ 1,2 × 10⁻⁶ kWh/año y la PD ≈ 6,1 × 10⁻⁷ kWh/año. La diferencia proyectada a un año (≈ 6 × 10⁻⁷ kWh) es despreciable: en esta operación el beneficio no es energético sino de resultado (+36 % de pacientes de alto riesgo atendidos con el mismo cómputo). La alternativa exacta por fuerza bruta no terminaría nunca.
+
+_Consumo del proceso completo: pendiente para la entrega del 23 de noviembre._
 
 ### 6.2 Preguntas de impacto del caso
 
@@ -338,4 +452,21 @@ _Pendiente para la entrega del 23 de noviembre._
 
 ## 8. Reproducción
 
-_Pendiente._
+Requisitos: Python 3.10 o superior.
+
+```bash
+# 1. Crear y activar el entorno virtual
+python3 -m venv .venv
+source .venv/bin/activate          # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+
+# 2. Pruebas (cada una imprime "OK: ...")
+python src/jornadas_unidades/pruebas.py
+
+# 3. Datos sintéticos, mediciones y gráficas
+python src/jornadas_unidades/medicion.py          # op. 3, ~1 min
+```
+
+- Cada `medicion.py` genera sus datos sintéticos con semilla fija (2026 + n), mediante el `datos.py` de su carpeta.
+- Escribe sus gráficas en `graficas/<operacion>/` y sus tablas en `resultados/<operacion>/` (`mediciones.csv` y `resumen.md`).
+- Los tiempos absolutos dependen del equipo; la forma de las curvas, los factores al duplicar n y los conteos de operaciones no.
