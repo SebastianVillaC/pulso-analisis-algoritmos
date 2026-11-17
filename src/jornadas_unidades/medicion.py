@@ -330,6 +330,7 @@ def extrapolar(filas: list[dict[str, float | int | str]]) -> list[str]:
     c_exh = t20 / (N_MAX_EXH * 2 ** N_MAX_EXH)
 
     def t_exhaustiva(n: int) -> float:
+        """Estima el tiempo de la exhaustiva como c·n·2ⁿ (c del mayor n)."""
         return c_exh * n * 2 ** n
 
     tiempos = {
