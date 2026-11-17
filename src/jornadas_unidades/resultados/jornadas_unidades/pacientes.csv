@@ -1,0 +1,10 @@
+n,solucion,pacientes_prom,jornadas_prom
+40,Programación dinámica,840.575,15.825
+40,Regla actual (llegada),616.435,14.82
+40,Voraz (terminación temprana),679.425,16.37
+80,Programación dinámica,1660.215,31.92
+80,Regla actual (llegada),1217.59,30.21
+80,Voraz (terminación temprana),1329.71,33.1
+120,Programación dinámica,2484.675,47.65
+120,Regla actual (llegada),1824.165,44.995
+120,Voraz (terminación temprana),1986.925,49.145
