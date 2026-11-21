@@ -10,6 +10,7 @@
 
 **Resumen.**
 - **Op. 3 (jornadas):** la Secretaría asigna hoy por orden de llegada. Proponemos programación dinámica de intervalos ponderados, que maximiza los pacientes de alto riesgo atendidos. En meses sintéticos atiende un **36 % más de pacientes** que la regla actual, en menos de un milisegundo por mes.
+- **Op. 4 (vigilancia):** el programa actual revisa todos los tramos de lotes y tarda días. Proponemos el algoritmo de Kadane (Θ(n)) y lo contrastamos con dividir y vencer (Θ(n log n)). Los 290 laboratorios se procesan en **menos de un segundo**.
 
 ---
 
@@ -38,7 +39,12 @@ Quién debe tomar esta decisión se discute en la sección 6.2.
 
 #### Operación 4 — Vigilancia de la calidad de los laboratorios
 
-_Pendiente para la entrega del 23 de noviembre._
+| Elemento | Descripción |
+|---|---|
+| **Entrada** | Para cada laboratorio, la serie cronológica de sus lotes. Cada lote aporta `x_i` = (tasa de positivos − tasa esperada) × 1000, en puntos por mil (entero, puede ser negativo). Un positivo es un índice de riesgo ≥ 70 |
+| **Tamaño** | n ≈ 33.000 lotes por laboratorio (30 lotes/día × 3 años); 290 laboratorios |
+| **Salida** | `(suma, inicio, fin)`: el tramo de lotes consecutivos con mayor exceso acumulado de positivos |
+| **Restricciones** | El tramo reportado es el de **mayor** exceso, no una aproximación. La serie original no se modifica |
 
 #### Operaciones 1 y 2 (solo para la línea base)
 
@@ -71,7 +77,15 @@ _Pendiente para la entrega del 23 de noviembre._
    - Inicio entre las 06:00 y las 16:00 y duración de 2 a 10 h, en pasos de 30 min.
    - De 1 a 80 pacientes por solicitud.
 
-**Operación 4:** _Pendiente para la entrega del 23 de noviembre._
+**Operación 4:**
+1. Los valores son enteros en puntos por mil, para evitar errores de redondeo con decimales.
+2. El tramo nunca es vacío. Si todos los lotes son negativos, el tramo es el lote con el valor más alto. Una serie vacía devuelve `(0, 0, -1)`, que indica que no hay tramo.
+3. **Regla actual:** para cada pareja (inicio, fin) se vuelve a sumar el tramo desde cero, lo que da Θ(n³). Es la lectura coherente con que el programa tarde "varios días".
+4. Si hay empate entre tramos con la misma suma, se acepta cualquiera.
+5. Datos sintéticos ([`datos.py`](src/vigilancia_laboratorios/datos.py)):
+   - Ruido normal de media 0 y desviación de 40 puntos por mil.
+   - Cada ~5.000 lotes, un episodio de descalibración de 20 a 200 lotes con +25 puntos por mil.
+6. La vigilancia con la estrategia propuesta se ejecuta **una vez al día** (365 al año).
 
 **Línea base:** _Pendiente para la entrega del 23 de noviembre._
 
@@ -186,7 +200,72 @@ SELECCIONAR-JORNADAS(S)
 
 ### 2.3 Operación 4 — Estrategias
 
-_Pendiente para la entrega del 23 de noviembre._
+| Estrategia | Familia | Complejidad | Archivo |
+|---|---|---|---|
+| Todos los tramos sumando cada uno (actual) | Fuerza bruta | Θ(n³) | [`regla_actual.py`](src/vigilancia_laboratorios/regla_actual.py) |
+| Todos los tramos con suma acumulada | Fuerza bruta mejorada (verificador exacto) | Θ(n²) | [`exhaustivo.py`](src/vigilancia_laboratorios/exhaustivo.py) |
+| **Dividir y vencer** | Dividir y vencer | Θ(n log n) | [`dividir_y_vencer.py`](src/vigilancia_laboratorios/dividir_y_vencer.py) |
+| **Kadane (recomendada)** | Programación dinámica | Θ(n) | [`estrategia.py`](src/vigilancia_laboratorios/estrategia.py) |
+
+#### Dividir y vencer: por qué el problema lo admite
+
+El tramo de mayor exceso de `x[bajo..alto]` solo puede estar en uno de tres lugares:
+1. Completo en la mitad izquierda.
+2. Completo en la mitad derecha.
+3. **Cruzando el centro.**
+
+Los casos 1 y 2 son el mismo problema sobre la mitad de los datos (subproblemas independientes). El caso 3 se resuelve en tiempo lineal: el mejor tramo que cruza es el mejor sufijo de la mitad izquierda unido al mejor prefijo de la mitad derecha.
+
+```
+TRAMO-DyV(x, bajo, alto)
+1  si bajo = alto: devolver (x[bajo], bajo, bajo)            ▷ caso base
+2  medio ← ⌊(bajo + alto)/2⌋
+3  I ← TRAMO-DyV(x, bajo, medio)
+4  D ← TRAMO-DyV(x, medio+1, alto)
+5  C ← mejor sufijo de x[bajo..medio] + mejor prefijo de x[medio+1..alto]   ▷ Θ(n)
+6  devolver el de mayor suma entre I, D y C
+```
+
+- **Recurrencia:** T(n) = 2·T(n/2) + Θ(n). Por el teorema maestro (caso 2) da **Θ(n log n)**.
+- **Espacio:** Θ(log n), por la pila de recursión.
+
+#### Kadane: por qué el problema admite programación dinámica
+
+Sea E[j] el mejor exceso de un tramo que **termina exactamente** en el lote j. Ese tramo es solo el lote j, o es el mejor tramo que terminaba en j−1 extendido con el lote j:
+
+```
+E[0] = x[0]
+E[j] = max( x[j] , E[j−1] + x[j] )        para j = 1..n−1
+respuesta = max_j E[j]
+```
+
+- Hay **subestructura óptima**: el mejor tramo que termina en j contiene el mejor que termina en j−1, o no contiene nada antes de j.
+- Hay **subproblemas que se reutilizan**: E[j−1] se usa para calcular E[j].
+- Como cada E[j] solo necesita el anterior, la tabla se reduce a una variable: tiempo **Θ(n)** y espacio **Θ(1)**.
+- La interpretación es directa: si el exceso acumulado hasta j−1 es negativo, conviene **empezar un tramo nuevo** en j.
+
+#### Ejemplo resuelto a mano (8 lotes de un laboratorio, puntos por mil)
+
+| Lote j | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 |
+|---|---|---|---|---|---|---|---|---|
+| x[j] | −20 | 35 | −10 | 40 | −60 | 15 | 25 | −5 |
+| E[j−1] + x[j] | — | 15 | 25 | 65 | 5 | 20 | 45 | 40 |
+| E[j] = max(x[j], E[j−1]+x[j]) | −20 | **35** (reinicia) | 25 | **65** | 5 | 20 | 45 | 40 |
+| Mejor hasta j | −20 (0..0) | 35 (1..1) | 35 | **65 (1..3)** | 65 | 65 | 65 | 65 |
+
+**Resultado:** tramo de lotes 1 a 3, con exceso acumulado de **65 puntos por mil**.
+
+Dividir y vencer llega al mismo resultado:
+- Mitad izquierda [−20, 35, −10, 40]: mejor tramo 65 (lotes 1..3).
+- Mitad derecha [−60, 15, 25, −5]: mejor tramo 40 (lotes 5..6).
+- Tramo que cruza el centro: mejor sufijo izquierdo 65 (desde el lote 1) + mejor prefijo derecho −20 (solo el lote 4) = 45.
+- El máximo es 65.
+
+Las cuatro implementaciones dan (65, 1, 3) en [`pruebas.py`](src/vigilancia_laboratorios/pruebas.py).
+
+**Cómo reduce el consumo energético.**
+- Pasar de Θ(n³) a Θ(n) con n = 33.000 divide el trabajo por un factor del orden de n² ≈ 10⁹.
+- La vigilancia de los 290 laboratorios baja de días a menos de un segundo, y la energía por ejecución de decenas de kWh a microkWh.
 
 ---
 
@@ -208,10 +287,16 @@ src/
 │   ├── exhaustivo.py         # 2ⁿ subconjuntos
 │   ├── regla_actual.py       # orden de llegada
 │   ├── datos.py · pruebas.py · medicion.py
+├── vigilancia_laboratorios/  # Op. 4
+│   ├── modelo.py · regla_actual.py (Θ(n³)) · exhaustivo.py (Θ(n²))
+│   ├── dividir_y_vencer.py · estrategia.py (Kadane)
+│   ├── datos.py · pruebas.py · medicion.py
 graficas/<operacion>/*.png    resultados/<operacion>/{mediciones.csv, resumen.md}
 ```
 
 **Código de la operación 3:** [`estrategia.py`](src/jornadas_unidades/estrategia.py) · [`exhaustivo.py`](src/jornadas_unidades/exhaustivo.py) · [`regla_actual.py`](src/jornadas_unidades/regla_actual.py) · [`pruebas.py`](src/jornadas_unidades/pruebas.py) · [`modelo.py`](src/jornadas_unidades/modelo.py)
+
+**Código de la operación 4:** [`estrategia.py`](src/vigilancia_laboratorios/estrategia.py) · [`dividir_y_vencer.py`](src/vigilancia_laboratorios/dividir_y_vencer.py) · [`exhaustivo.py`](src/vigilancia_laboratorios/exhaustivo.py) · [`regla_actual.py`](src/vigilancia_laboratorios/regla_actual.py) · [`pruebas.py`](src/vigilancia_laboratorios/pruebas.py)
 
 **Decisiones de implementación relevantes.**
 1. **La regla de cruce vive en un solo lugar.**
@@ -223,6 +308,8 @@ graficas/<operacion>/*.png    resultados/<operacion>/{mediciones.csv, resumen.md
 4. **La entrada nunca se modifica.** Se usa `sorted` (copia), no `.sort()`, y las tuplas son inmutables. Las pruebas comparan la entrada con una copia después de cada llamada.
 5. **El conteo de operaciones es opcional.** Cada función recibe `contador=None`. El cronómetro corre sin contador, y el conteo se hace en una ejecución aparte, para que contar no infle el tiempo.
 6. **Exhaustiva de la op. 3.** Ordena por inicio y abandona un subconjunto en cuanto encuentra un cruce. Así se mantiene exacta y es más rápida en promedio; en el peor caso sigue siendo Θ(n·2ⁿ).
+7. **Op. 4 con enteros.** Los valores en puntos por mil hacen que las comparaciones sean exactas, sin errores de punto flotante, y las cuatro implementaciones pueden compararse con `==`.
+8. **Dividir y vencer recursivo.** La profundidad es ~log₂ n ≈ 18 para n = 204.800, lejos del límite de recursión de Python.
 
 ---
 
@@ -236,6 +323,7 @@ graficas/<operacion>/*.png    resultados/<operacion>/{mediciones.csv, resumen.md
   - Op. 3, PD: comparaciones de la búsqueda binaria y celdas de M.
   - Op. 3, exhaustiva: subconjuntos y comparaciones.
   - Op. 3, regla actual: comparaciones contra las jornadas aceptadas.
+  - Op. 4: sumas y comparaciones.
 - **Verificación dentro del experimento:** en cada tamaño, todas las soluciones que corren deben coincidir en el valor óptimo (`assert`).
 - **Gráficas:** escala log-log, porque en ella una curva de la forma n^k se ve como una recta de pendiente k y una exponencial se ve casi vertical.
 - Los tiempos absolutos dependen del equipo en que se mide (un portátil con macOS y Python 3.14). La forma de las curvas y los factores al duplicar n no dependen de él.
@@ -356,7 +444,71 @@ Medición: [`datos.py`](src/jornadas_unidades/datos.py) y [`medicion.py`](src/jo
 
 ### 4.2 Operación 4
 
-_Pendiente para la entrega del 23 de noviembre._
+#### Complejidad temporal y espacial
+
+| Solución | Tiempo | Espacio | Justificación |
+|---|---|---|---|
+| Regla actual | Θ(n³) | Θ(1) | n(n+1)/2 tramos, y cada suma se rehace desde cero, hasta n pasos |
+| Suma acumulada | Θ(n²) | Θ(1) | Mismos tramos, pero cada suma se obtiene de la anterior en Θ(1) |
+| Dividir y vencer | Θ(n log n) | Θ(log n) | T(n) = 2T(n/2) + Θ(n), teorema maestro caso 2 |
+| **Kadane** | **Θ(n)** | **Θ(1)** | Una pasada; E[j] solo necesita E[j−1] |
+
+#### Verificación
+
+[`pruebas.py`](src/vigilancia_laboratorios/pruebas.py) comprueba:
+- **Casos límite:** serie vacía, un lote positivo o negativo, todo negativo (el lote menos negativo), todo positivo (la serie entera) y ceros.
+- El **ejemplo a mano**: (65, 1, 3) en las cuatro implementaciones.
+- **200 series aleatorias** (semilla 2026). En todas:
+  - las cuatro dan la misma suma;
+  - **la suma reportada es la suma real del tramo reportado**;
+  - los índices son válidos;
+  - la serie original no se modifica.
+- El **contador**: la suma acumulada hace exactamente n(n+1) operaciones, y el orden de los conteos es cúbica > cuadrática > dividir y vencer > Kadane.
+
+En la medición, todas las soluciones coinciden en el exceso máximo en cada tamaño.
+
+#### Resultados
+
+Medición: [`datos.py`](src/vigilancia_laboratorios/datos.py) y [`medicion.py`](src/vigilancia_laboratorios/medicion.py). Datos: [`mediciones.csv`](resultados/vigilancia_laboratorios/mediciones.csv) y [`resumen.md`](resultados/vigilancia_laboratorios/resumen.md).
+- Θ(n³): hasta 800.
+- Θ(n²): hasta 6.400.
+- Dividir y vencer y Kadane: hasta 204.800, incluido n = 33.000.
+
+![Op. 4: tiempo frente a n](graficas/vigilancia_laboratorios/tiempo_vs_n.png)
+
+![Op. 4: operaciones frente a n](graficas/vigilancia_laboratorios/operaciones_vs_n.png)
+
+#### Lo medido frente a lo esperado
+
+| Solución | n → 2n | Factor tiempo | Factor operaciones | Esperado |
+|---|---|---|---|---|
+| Regla actual Θ(n³) | 400 → 800 | 8,81 | 7,94 | 8,00 |
+| Suma acumulada Θ(n²) | 3.200 → 6.400 | 3,96 | 4,00 | 4,00 |
+| Dividir y vencer Θ(n log n) | 102.400 → 204.800 | 2,09 | 2,11 | 2,12 |
+| Kadane Θ(n) | 102.400 → 204.800 | 2,01 | 2,00 | 2,00 |
+
+Las cuatro curvas siguen su complejidad teórica casi exactamente:
+- En operaciones, el factor coincide con el teórico salvo diferencias en la segunda cifra decimal.
+- En tiempo, la cúbica sale un poco por encima de 8 (8,8) porque, con n = 800, sus ~86 millones de operaciones ya no aprovechan igual la caché del procesador.
+- En la gráfica log-log se ven rectas de pendiente 3, 2, ≈1 y 1.
+
+#### Escala real, ventana y energía (290 laboratorios × 33.000 lotes)
+
+- Dividir y vencer y Kadane se **midieron directamente** en n = 33.000.
+- La cúbica y la cuadrática se extrapolaron con T(n) = c·f(n), ajustando c con su mayor tamaño medido.
+
+| Solución | Un laboratorio | 290 laboratorios | ¿Cabe en 4 h? | kWh por ejecución |
+|---|---|---|---|---|
+| Regla actual Θ(n³) (nuestra implementación) | 24,0 h | **≈ 290 días** | No | ≈ 2.650 |
+| Regla actual (cifra del cliente: "varios días" ≈ 3 días) | — | 72 h | No | **27,4** |
+| Suma acumulada Θ(n²) | 21,8 s | 1,75 h | Sí | 0,67 |
+| Dividir y vencer | 28,7 ms | 8,3 s | Sí | 8,8 × 10⁻⁴ |
+| **Kadane** | **1,7 ms** | **0,49 s** | **Sí** | **5,2 × 10⁻⁵** |
+
+**Lectura de los resultados.**
+- El programa actual del cliente tarda "varios días", menos que nuestra extrapolación en Python, probablemente porque está compilado. Lo importante es la forma: con Θ(n³), **duplicar el histórico multiplica el tiempo por 8**.
+- Con Kadane, la vigilancia completa cabe con holgura en cualquier ventana y puede correr **todos los días**: 0,38 kW × 0,49 s ≈ 5,2 × 10⁻⁵ kWh por día, es decir **≈ 0,019 kWh al año**.
+- Frente a la línea base (27,4 kWh por ejecución, 12 al año, ≈ 328 kWh/año), el **ahorro es de ≈ 328 kWh al año**, y además se pasa de una vigilancia mensual a una diaria.
 
 ### 4.3 Línea base (ops. 1 y 2) y alternativa de referencia
 
@@ -414,7 +566,22 @@ Ambos casos se verifican en las pruebas.
 
 ### 5.2 Operación 4 y comparación global
 
-_Pendiente para la entrega del 23 de noviembre._
+**Comparación de las estrategias de la op. 4.**
+- Las cuatro son exactas.
+- La diferencia entre ellas es únicamente de costo: 290 días, 1,75 h, 8 s o 0,5 s para los 290 laboratorios.
+- Dividir y vencer es una mejora enorme sobre la actual, pero Kadane es 17 veces más rápido, usa memoria constante y es más fácil de mantener.
+
+Kadane tiene una ventaja que **anticipa una necesidad futura**: como solo guarda E y el mejor tramo, puede **actualizarse con cada lote nuevo en Θ(1)**. Así, la vigilancia podría generar una alerta en cuanto el exceso acumulado de un laboratorio supere un umbral, en lugar de esperar al cierre del mes.
+
+**Comparación entre las dos operaciones.**
+
+| | Op. 3 — Jornadas | Op. 4 — Vigilancia |
+|---|---|---|
+| Problema | Intervalos ponderados | Subarreglo máximo |
+| Estrategia recomendada | Programación dinámica, Θ(n log n) | Programación dinámica (Kadane), Θ(n) |
+| Alternativa estudiada | Voraz por jornadas, exhaustiva | Dividir y vencer, Θ(n²), Θ(n³) |
+| Ganancia principal | **Resultado**: +36 % de pacientes | **Tiempo y energía**: de días a 0,5 s; ≈ 328 kWh/año |
+| Riesgo principal | Equidad entre municipios (decisión de política) | Umbral de alerta mal calibrado |
 
 ---
 
@@ -462,9 +629,11 @@ pip install -r requirements.txt
 
 # 2. Pruebas (cada una imprime "OK: ...")
 python src/jornadas_unidades/pruebas.py
+python src/vigilancia_laboratorios/pruebas.py
 
 # 3. Datos sintéticos, mediciones y gráficas
 python src/jornadas_unidades/medicion.py          # op. 3, ~1 min
+python src/vigilancia_laboratorios/medicion.py    # op. 4, ~25 s
 ```
 
 - Cada `medicion.py` genera sus datos sintéticos con semilla fija (2026 + n), mediante el `datos.py` de su carpeta.
