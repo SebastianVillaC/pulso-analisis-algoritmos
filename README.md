@@ -11,6 +11,7 @@
 **Resumen.**
 - **Op. 3 (jornadas):** la Secretaría asigna hoy por orden de llegada. Proponemos programación dinámica de intervalos ponderados, que maximiza los pacientes de alto riesgo atendidos. En meses sintéticos atiende un **36 % más de pacientes** que la regla actual, en menos de un milisegundo por mes.
 - **Op. 4 (vigilancia):** el programa actual revisa todos los tramos de lotes y tarda días. Proponemos el algoritmo de Kadane (Θ(n)) y lo contrastamos con dividir y vencer (Θ(n log n)). Los 290 laboratorios se procesan en **menos de un segundo**.
+- **Línea base:** las operaciones 1 y 2 consumen hoy cerca de **971 kWh al año**, la mayor parte de la energía del proceso, y ninguna cabe en la ventana nocturna.
 
 ---
 
@@ -18,7 +19,18 @@
 
 ### 1.1 Descripción del problema computacional
 
-_Pendiente para la entrega del 23 de noviembre._
+La Secretaría recibe cada día unos **1.450.000 resultados** de tamizaje enviados por 290 laboratorios e IPS. Con ellos hace cuatro cosas:
+1. **Consolidar** un resultado por paciente.
+2. Armar la **lista diaria de 9.000 llamadas**, en orden de riesgo.
+3. **Programar las jornadas** de 9 unidades móviles.
+4. **Vigilar** a los laboratorios para detectar equipos descalibrados.
+
+La plataforma se diseñó para 35.000 registros. El volumen creció unas 40 veces, y las estrategias cuadráticas o cúbicas dejaron de caber en el tiempo disponible: el proceso nocturno tarda unas 7 h y la ventana es de 4 h. La programación de jornadas se hace a mano y la vigilancia tarda días.
+
+El problema computacional es elegir, para cada operación, una estrategia que:
+- dé **el mismo resultado exacto** que exige el negocio;
+- termine dentro de la ventana;
+- consuma la menor energía posible en un único servidor de 380 W, sin paralelismo.
 
 ### 1.2 Entradas, salidas y restricciones
 
@@ -48,15 +60,46 @@ Quién debe tomar esta decisión se discute en la sección 6.2.
 
 #### Operaciones 1 y 2 (solo para la línea base)
 
-_Pendiente para la entrega del 23 de noviembre._
+- **Op. 1:**
+  - Entrada: 1.450.000 resultados `(documento, fecha, riesgo)`.
+  - Salida: un resultado por paciente, el más reciente.
+  - Restricción: ningún paciente desaparece.
+- **Op. 2:**
+  - Entrada: los pacientes consolidados.
+  - Salida: los 9.000 de mayor riesgo; a igual riesgo, primero el resultado más antiguo.
 
 ### 1.3 Operaciones críticas del proceso
 
-_Pendiente para la entrega del 23 de noviembre._
+| Op. | Estrategia actual | Complejidad | n real | Tiempo actual estimado | ¿Cabe? |
+|---|---|---|---|---|---|
+| 1. Consolidación | Busca cada resultado recorriendo la lista consolidada | Θ(n·m) ≈ Θ(n²) | 1.450.000 | ops. 1 + 2: **≈ 5,1 h medido y extrapolado**; **7 h** según la Secretaría | **No** (ventana 4 h) |
+| 2. Lista de llamadas | Ordena todo por inserción y toma 9.000 | Θ(n²) | ≈ 1.276.000 pacientes | (incluido arriba) | **No** |
+| 3. Jornadas | A mano: orden de llegada, rechaza cruces | Θ(n²) | 120 por subregión | < 1 ms en cómputo; días de trabajo manual en hojas de cálculo | Sí (cómputo) |
+| 4. Vigilancia | Evalúa todos los tramos, sumando cada uno | Θ(n³) | 33.000 × 290 | **"varios días"** según el cliente; ≈ 290 días en nuestra implementación en Python | **No** |
+
+Las operaciones más costosas son la **4** (cúbica) y la pareja **1 + 2** (cuadráticas sobre 1,45 millones de registros):
+- La pareja 1 + 2 es la que desborda la ventana nocturna cada día.
+- La op. 4 ni siquiera puede ejecutarse con la frecuencia que la vigilancia necesitaría.
+
+La op. 3 tiene un costo de cómputo despreciable. Su costo es **social**: pacientes de alto riesgo que se quedan sin valoración.
+
+Los valores de las ops. 1 y 2 salen de [`src/linea_base/medicion.py`](src/linea_base/medicion.py) (ver [`resultados/linea_base/resumen.md`](resultados/linea_base/resumen.md)). Se midieron las implementaciones actuales hasta n = 16.000 y se extrapoló con T(n) = c·n²; el factor medido al duplicar n fue **4,03** (esperado 4).
+
+![Línea base de las operaciones 1 y 2](graficas/linea_base/tiempo_vs_n.png)
 
 ### 1.4 Costo energético del proceso actual (línea base)
 
-_Pendiente para la entrega del 23 de noviembre._
+Energía = potencia × tiempo. El servidor consume **0,38 kW**.
+
+| Operación | Tiempo por ejecución | Ejecuciones/año | kWh/año |
+|---|---|---|---|
+| Ops. 1 + 2 (cifra de la Secretaría) | 7 h | 365 noches | 0,38 × 7 × 365 = **970,9** |
+| Ops. 1 + 2 (nuestra extrapolación) | 5,07 h | 365 | 702,9 |
+| Op. 4 (supuesto: "varios días" = 3 días = 72 h) | 72 h | 12 (mensual; a diario no cabe) | 0,38 × 72 × 12 = **328,3** |
+| Op. 3 | < 1 ms | 108 | ≈ 0 (el costo es humano, no eléctrico) |
+| **Total línea base** | | | **≈ 1.299 kWh/año** |
+
+Nuestra extrapolación de las ops. 1 + 2 (5,1 h) es del mismo orden que las 7 h que informa la Secretaría, lo que respalda la forma cuadrática del costo. Para la línea base usamos la cifra del cliente, que es la real.
 
 ### 1.5 Supuestos
 
@@ -87,7 +130,10 @@ _Pendiente para la entrega del 23 de noviembre._
    - Cada ~5.000 lotes, un episodio de descalibración de 20 a 200 lotes con +25 puntos por mil.
 6. La vigilancia con la estrategia propuesta se ejecuta **una vez al día** (365 al año).
 
-**Línea base:** _Pendiente para la entrega del 23 de noviembre._
+**Línea base:**
+- Entre el 8 % y el 15 % de los resultados son de pacientes repetidos; usamos 12 %.
+- Las fechas son distintas por paciente.
+- Si la Secretaría dice que la vigilancia tarda "varios días", tomamos 3 días.
 
 ---
 
@@ -95,7 +141,17 @@ _Pendiente para la entrega del 23 de noviembre._
 
 ### 2.1 Estructuras de datos
 
-_Pendiente para la entrega del 23 de noviembre._
+| Estructura | Dónde | Por qué |
+|---|---|---|
+| Tupla inmutable `(inicio, fin, pacientes)` | Op. 3 | Representa una solicitud. Al ser inmutable, ningún algoritmo puede alterar el registro original (trazabilidad) |
+| Lista ordenada por fin | Op. 3, PD y voraz | Con ese orden, las jornadas compatibles con j forman un bloque al principio de la lista y el estado de la PD es un solo número |
+| Arreglo `p[0..n]` | Op. 3 | p(j) = cuántas jornadas anteriores terminan antes de que j empiece. Se calcula con búsqueda binaria |
+| Tabla `M[0..n]` | Op. 3 | M[j] = máximo de pacientes usando las jornadas 1..j. Se llena una vez y sirve para reconstruir |
+| Lista de enteros `x[0..n−1]` | Op. 4 | La serie de lotes. Se recorre una sola vez (Kadane) |
+| Variables `E` y `mejor` | Op. 4, Kadane | Basta el valor anterior de la recurrencia: espacio Θ(1) |
+| Pila de recursión | Op. 4, dividir y vencer | Profundidad ⌈log₂ n⌉ ≈ 16 para n = 33.000 |
+| Tabla hash `documento → posición` | Op. 1 (referencia) | Busca un paciente en Θ(1) esperado, en lugar de recorrer la lista |
+| Montículo de tamaño k | Op. 2 (referencia) | Selecciona los 9.000 de mayor riesgo en Θ(n log k) sin ordenar todo |
 
 ### 2.2 Operación 3 — Estrategias
 
@@ -275,6 +331,7 @@ Las cuatro implementaciones dan (65, 1, 3) en [`pruebas.py`](src/vigilancia_labo
 - Python 3.10 o superior.
 - Los algoritmos usan solo la biblioteca estándar y están escritos a mano. Las operaciones 3 y 4 no usan bibliotecas de optimización.
 - `matplotlib` se usa solo para las gráficas.
+- La línea base de referencia de la op. 2 usa `heapq`, porque no es una de las operaciones trabajadas.
 - El código cumple PEP 8, revisado con `pycodestyle`, y tiene type hints y docstrings estilo Google en cada función.
 
 **Estructura del repositorio.**
@@ -291,6 +348,8 @@ src/
 │   ├── modelo.py · regla_actual.py (Θ(n³)) · exhaustivo.py (Θ(n²))
 │   ├── dividir_y_vencer.py · estrategia.py (Kadane)
 │   ├── datos.py · pruebas.py · medicion.py
+└── linea_base/               # Ops. 1 y 2: actual frente a referencia
+    ├── procesos.py · medicion.py
 graficas/<operacion>/*.png    resultados/<operacion>/{mediciones.csv, resumen.md}
 ```
 
@@ -318,7 +377,7 @@ graficas/<operacion>/*.png    resultados/<operacion>/{mediciones.csv, resumen.md
 ### 4.0 Método experimental (común a todas las operaciones)
 
 - **Datos:** sintéticos, generados con `random.Random(semilla)`, con semilla 2026 + n. En cada tamaño, **todas las soluciones resuelven la misma instancia**.
-- **Tiempo:** `time.perf_counter()` alrededor de la llamada, sin incluir la generación de datos. Se promedian **5 repeticiones**.
+- **Tiempo:** `time.perf_counter()` alrededor de la llamada, sin incluir la generación de datos. Se promedian **5 repeticiones** (3 en la línea base).
 - **Operaciones elementales:** se cuentan con un contador propio, en una ejecución aparte.
   - Op. 3, PD: comparaciones de la búsqueda binaria y celdas de M.
   - Op. 3, exhaustiva: subconjuntos y comparaciones.
@@ -512,7 +571,10 @@ Las cuatro curvas siguen su complejidad teórica casi exactamente:
 
 ### 4.3 Línea base (ops. 1 y 2) y alternativa de referencia
 
-_Pendiente para la entrega del 23 de noviembre._
+[`src/linea_base/`](src/linea_base/) compara la implementación actual (búsqueda lineal + inserción) con una referencia (tabla hash + montículo top-k):
+- Primero verifica con `assert` que ambas dan **exactamente la misma lista de llamadas** y que nadie desaparece en la consolidación (50 instancias).
+- La referencia, **medida en el volumen real** (1.450.000 resultados), tarda **0,36 s**, frente a las 5 a 7 h de hoy.
+- Esta alternativa queda como recomendación de trabajo futuro (sección 7) y como base para estimar el consumo del proceso propuesto.
 
 ---
 
@@ -583,6 +645,13 @@ Kadane tiene una ventaja que **anticipa una necesidad futura**: como solo guarda
 | Ganancia principal | **Resultado**: +36 % de pacientes | **Tiempo y energía**: de días a 0,5 s; ≈ 328 kWh/año |
 | Riesgo principal | Equidad entre municipios (decisión de política) | Umbral de alerta mal calibrado |
 
+**Solución seleccionada.**
+- Op. 3: **PD de intervalos ponderados**.
+- Op. 4: **Kadane**.
+- Ops. 1 y 2: tabla hash + montículo top-k (recomendación complementaria).
+
+Con estas estrategias, el proceso nocturno pasaría de ~7 h a segundos, y las dos tareas que hoy se hacen en hojas de cálculo o en días de cómputo se resolverían de forma exacta en menos de un segundo.
+
 ---
 
 ## 6. Implicaciones éticas, sociales y ambientales
@@ -634,6 +703,7 @@ python src/vigilancia_laboratorios/pruebas.py
 # 3. Datos sintéticos, mediciones y gráficas
 python src/jornadas_unidades/medicion.py          # op. 3, ~1 min
 python src/vigilancia_laboratorios/medicion.py    # op. 4, ~25 s
+python src/linea_base/medicion.py                 # ops. 1 y 2, ~10 s
 ```
 
 - Cada `medicion.py` genera sus datos sintéticos con semilla fija (2026 + n), mediante el `datos.py` de su carpeta.
