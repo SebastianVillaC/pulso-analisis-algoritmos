@@ -755,7 +755,27 @@ Una estrategia lineal o casi lineal es la que mejor **anticipa** el crecimiento 
 
 ## 7. Conclusiones
 
-_Pendiente para la entrega del 23 de noviembre._
+**Principales hallazgos.**
+1. El problema de Pulso es **algorítmico, no de infraestructura**. Las cuatro operaciones usan estrategias cuadráticas, cúbicas o manuales. Cambiar de estrategia lleva cada una a tiempos de milisegundos o segundos en el mismo servidor.
+2. En la op. 3, **el criterio importa tanto como la eficiencia**. La programación dinámica de intervalos ponderados atiende un **36 % más de pacientes de alto riesgo** que la regla actual y un 25 % más que el voraz por número de jornadas, con la misma complejidad Θ(n log n) que el voraz.
+3. En la op. 4, Kadane (Θ(n)) reduce la vigilancia de los 290 laboratorios de **días a medio segundo**, y permite vigilar a diario e incluso por lote.
+4. Las mediciones confirmaron la teoría:
+   - factores al duplicar de ×2,0 (Θ(n)), ×2,1 (Θ(n log n)), ×4,0 (Θ(n²)) y ×8 (Θ(n³));
+   - un crecimiento de más de ×1.000 al sumar 10 elementos en la exhaustiva.
+5. El proceso propuesto ahorraría **≈ 1.299 kWh al año** (≈ 486 kg de CO₂) y absorbería un crecimiento del doble del volumen sin hardware adicional.
+
+**Lecciones aprendidas.**
+- Una estrategia "rápida" solo es aceptable si se **verifica contra una exacta**. Las pruebas aleatorias contra la exhaustiva detectaron inmediatamente los errores de convención en los extremos de los intervalos.
+- Contar operaciones, además de medir tiempo, separa la complejidad del ruido de la máquina. Los conteos coinciden con la teoría casi exactamente; los tiempos fluctúan.
+- Antes de extrapolar hay que **justificar la forma de la curva**. Una regla de tres con una curva exponencial o cúbica da resultados absurdos.
+- No todas las mejoras son energéticas: en la op. 3 la ganancia está en las personas atendidas, y hay que decirlo así.
+
+**Recomendaciones para futuras mejoras.**
+1. Implementar en producción las ops. 1 y 2 con tabla hash y montículo top-k. Ya están verificadas como referencia en [`src/linea_base/`](src/linea_base/).
+2. Hacer la vigilancia **incremental**: Kadane actualizado con cada lote, con alertas por umbral definidas junto con epidemiología.
+3. Incorporar a la PD de jornadas **restricciones de equidad** (visita mínima por municipio) y estudiar el caso de **varias unidades por subregión**.
+4. Medir en el servidor real del cliente y en una implementación compilada, para recalibrar las constantes de la extrapolación.
+5. Formalizar, con la Secretaría, quién decide el criterio de optimización y con qué periodicidad se revisa.
 
 ---
 
@@ -782,3 +802,10 @@ python src/linea_base/medicion.py                 # ops. 1 y 2, ~10 s
 - Cada `medicion.py` genera sus datos sintéticos con semilla fija (2026 + n), mediante el `datos.py` de su carpeta.
 - Escribe sus gráficas en `graficas/<operacion>/` y sus tablas en `resultados/<operacion>/` (`mediciones.csv` y `resumen.md`).
 - Los tiempos absolutos dependen del equipo; la forma de las curvas, los factores al duplicar n y los conteos de operaciones no.
+
+**PDF del informe.** [`informe.pdf`](informe.pdf) se genera a partir de este README, con el mismo contenido. Requiere Google Chrome o Chromium:
+
+```bash
+pip install markdown-it-py
+python herramientas/generar_pdf.py
+```
