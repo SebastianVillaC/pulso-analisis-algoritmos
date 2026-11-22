@@ -658,25 +658,98 @@ Con estas estrategias, el proceso nocturno pasaría de ~7 h a segundos, y las do
 
 ### 6.1 Consumo energético
 
-**Operación 3** (ver la sección 4.1): con 108 ejecuciones al año en el servidor de 0,38 kW, la regla actual consume ≈ 1,2 × 10⁻⁶ kWh/año y la PD ≈ 6,1 × 10⁻⁷ kWh/año. La diferencia proyectada a un año (≈ 6 × 10⁻⁷ kWh) es despreciable: en esta operación el beneficio no es energético sino de resultado (+36 % de pacientes de alto riesgo atendidos con el mismo cómputo). La alternativa exacta por fuerza bruta no terminaría nunca.
+| Operación | Proceso actual (kWh/año) | Solución propuesta (kWh/año) | Diferencia (kWh/año) |
+|---|---|---|---|
+| Ops. 1 + 2 (365 noches) | 970,9 (7 h/noche) | 0,014 (0,36 s/noche, referencia medida) | 970,9 |
+| Op. 3 (108 ejecuciones) | 1,2 × 10⁻⁶ | 6,1 × 10⁻⁷ | ≈ 0 |
+| Op. 4 (actual: 12/año; propuesta: 365/año) | 328,3 | 0,019 | 328,3 |
+| **Total** | **≈ 1.299** | **≈ 0,03** | **≈ 1.299 kWh/año** |
 
-_Consumo del proceso completo: pendiente para la entrega del 23 de noviembre._
+Son estimaciones de la energía que consume el cómputo, calculadas como 0,38 kW × horas. Dos precisiones:
+1. Si el servidor dedicado permanece encendido igual, el ahorro real depende de que se apague o se use para otras tareas. Lo que se libera son ~7 h diarias de capacidad.
+2. Con el factor de emisión del Sistema Interconectado Nacional publicado por la UPME (0,374 t CO₂/MWh, Resolución 762 de 2023, modificada por la Resolución 705 de 2024 [9]), los ~1.299 kWh equivalen a **≈ 486 kg de CO₂ al año**. El factor se actualiza cada año; es un orden de magnitud.
 
 ### 6.2 Preguntas de impacto del caso
 
-_Pendiente para la entrega del 23 de noviembre._
+**Personas: ¿qué criterio optimizar en las jornadas y quién debe decidirlo?**
+- Recomendamos maximizar los **pacientes de alto riesgo atendidos**, porque es lo que reduce el daño (diabetes no diagnosticada).
+- Pero la decisión **no le corresponde al algoritmo ni al equipo de ingeniería**. Es una decisión de política sanitaria que debe tomar la **Secretaría de Salud, a través de su dirección de salud pública o un comité técnico con epidemiología**, escuchando a los municipios. Debe quedar documentada y publicada.
+- El algoritmo debe hacer **explícito** el criterio. En nuestra implementación es el peso `v_j`, y puede cambiarse sin tocar la estrategia (por ejemplo, pacientes × gravedad o una prioridad territorial).
+- **Riesgo de equidad:** un municipio pequeño puede no entrar nunca en la programación óptima. **Mitigación desde el diseño:**
+  - aumentar el peso de los municipios no visitados en los últimos meses;
+  - o fijar primero una jornada mínima por municipio cada trimestre y optimizar el resto con la PD.
+  - Ambas variantes conservan la misma estrategia.
+
+**¿Qué le pasa a un paciente que la consolidación borra por error?**
+- Desaparece de la lista de llamadas: no lo llaman, no se valora y su diabetes puede avanzar sin tratamiento.
+- El costo lo asume el paciente, con frecuencia de municipios rurales y con menos acceso.
+- **Mitigación:**
+  - Consolidar por la clave completa (`tipo_documento`, `numero_documento`) y nunca borrar el registro original: la consolidación produce una vista nueva.
+  - Verificar por programa que el conjunto de pacientes antes y después es el mismo. [`linea_base/medicion.py`](src/linea_base/medicion.py) lo comprueba con `assert`.
+
+**¿Y a un paciente sano que un laboratorio descalibrado envía a valoración?**
+- Pasa angustia, gastos de desplazamiento y pruebas innecesarias.
+- **Ocupa un cupo** que necesitaba un paciente de alto riesgo real.
+- Hoy la vigilancia tarda días y se corre con poca frecuencia, así que un equipo descalibrado puede afectar a cientos de personas antes de detectarse.
+- Con Kadane la vigilancia puede ser **diaria o incluso por lote**, lo que reduce ese número.
+- El tramo reportado es una **alerta para auditar** al laboratorio, no una sanción automática: debe confirmarlo una persona.
+
+**Normativa.** Ver la sección 6.4.
+
+**Crecimiento: tamizaje de hipertensión, resultados diarios × 2.** Ver la sección 6.5.
 
 ### 6.3 Consecuencias sobre las personas: errores y retrasos
 
-_Pendiente para la entrega del 23 de noviembre._
+| Falla | Quién asume el costo | Mitigación desde el diseño |
+|---|---|---|
+| El proceso nocturno no termina a tiempo (hoy) | Pacientes de alto riesgo, que se llaman un día tarde, y el centro de contacto, que trabaja con la lista del día anterior | Estrategias Θ(n) y Θ(n log k): el proceso cabe en segundos, con margen para reprocesar si algo falla |
+| Una jornada mal programada (cruce) | La unidad móvil y los municipios, que quedan sin atención | Verificación `hay_cruce` antes de publicar la programación; pruebas sobre 200 instancias |
+| Se elige un criterio sin decirlo | Municipios desfavorecidos por un criterio que no conocen | Criterio declarado en el README y como parámetro explícito; programación auditable y reproducible |
+| Un laboratorio descalibrado no se detecta | Pacientes sanos enviados a valoración y pacientes enfermos sin cupo | Vigilancia diaria o incremental con Kadane; alerta para revisión humana |
+| Un algoritmo rápido pero incorrecto | Todos | Cada estrategia rápida se verifica contra una exacta (exhaustiva) en cientos de instancias |
 
 ### 6.4 Marco normativo y buenas prácticas
 
-_Pendiente para la entrega del 23 de noviembre._
+| Norma o práctica | Qué exige (en lo pertinente) | Cómo lo respeta el diseño |
+|---|---|---|
+| **Ley Estatutaria 1581 de 2012**, protección de datos personales [1] | Los datos relativos a la salud son **datos sensibles** (art. 5) y su tratamiento está restringido (art. 6); principios de finalidad, acceso restringido, seguridad y confidencialidad | **Minimización:** los algoritmos de las ops. 3 y 4 no usan datos personales, solo horarios, conteos de pacientes por municipio y tasas por lote. La identificación del paciente solo se usa en la consolidación, para el fin del programa de tamizaje |
+| **Decreto 1377 de 2013** (compilado en el Decreto 1074 de 2015) [2] | Al tratar datos sensibles, informar al titular que no está obligado a autorizar ese tratamiento | Es responsabilidad de la Secretaría en la captura; el diseño no crea nuevos usos de los datos |
+| **Ley Estatutaria 1751 de 2015**, derecho fundamental a la salud [3] | Entre los elementos del derecho está la **oportunidad**: los servicios se prestan sin dilaciones | Que el proceso nocturno quepa en la ventana es una cuestión de oportunidad: la lista del día debe estar lista a las 06:00. La PD prioriza a quienes más necesitan la valoración |
+| **Ley 2015 de 2020**, historia clínica electrónica interoperable [4] | La información clínica pertenece al paciente; las correcciones se agregan con fecha, hora y autor **sin borrar el registro original** | **Trazabilidad:** ninguna función modifica su entrada (copias, tuplas inmutables); las pruebas lo verifican en las tres carpetas |
+| **Resolución 1995 de 1999** (modificada por la Res. 839 de 2017), manejo de la historia clínica [5] | Custodia, conservación y confidencialidad de los registros clínicos | Los registros originales de los laboratorios se conservan sin cambios; el proceso produce vistas derivadas |
+| **Resolución 3280 de 2018**, Ruta Integral de Atención para la Promoción y Mantenimiento de la Salud [6] | Lineamientos de las intervenciones de detección temprana (tamizaje) del sistema de salud | Las jornadas y la lista de llamadas son la parte operativa de esa detección temprana; optimizarlas acerca el programa a su objetivo |
+| **CONPES 3975 de 2019**, política nacional de transformación digital e inteligencia artificial [7] | Uso de tecnologías digitales en el sector público para generar valor social | Algoritmos exactos, explicables y verificables, en lugar de modelos opacos |
+| **Código de Ética de la ACM (2018)** [8] | Evitar daños (1.2), ser honesto sobre las limitaciones (1.3), ser justo y no discriminar (1.4) | El criterio y sus riesgos de equidad están declarados; los límites del modelo (una unidad por subregión, datos sintéticos) se informan explícitamente |
+| **Principios de software verde** (Green Software Foundation) [10] | Eficiencia energética: hacer el mismo trabajo con menos energía | Elegir la estrategia de menor complejidad es la principal palanca de eficiencia (sección 6.1) |
+| **ISO/IEC 27001** (buena práctica) | Gestión de la seguridad de la información | Recomendación operativa: cifrado en reposo, control de acceso por rol, registro de auditoría de cada ejecución |
+
+**Fuentes.**
+1. Ley 1581 de 2012. [Alcaldía de Bogotá — Régimen Legal](https://www.alcaldiabogota.gov.co/sisjur/normas/Norma1.jsp?i=49981)
+2. Decreto 1377 de 2013 (reglamenta parcialmente la Ley 1581; compilado en el Decreto 1074 de 2015). [Cancillería — Normograma](https://www.cancilleria.gov.co/normograma/compilacion/docs/arbol/8514.htm)
+3. Ley 1751 de 2015. [Función Pública — Gestor Normativo](https://www.funcionpublica.gov.co/eva/gestornormativo/norma.php?i=60733)
+4. Ley 2015 de 2020. [Función Pública — Gestor Normativo](https://www.funcionpublica.gov.co/eva/gestornormativo/norma.php?i=105472)
+5. Resolución 1995 de 1999. [Unidad para las Víctimas (copia)](https://www.unidadvictimas.gov.co/wp-content/uploads/Documentos/resoluciones/RESOLUCI%c3%93N_1995_1999.pdf); Resolución 839 de 2017. [Supersalud — Normograma](https://normograma.supersalud.gov.co/compilacion/docs/resolucion_minsaludps_0839_2017.htm)
+6. Resolución 3280 de 2018. [Supersalud — Normograma](https://normograma.supersalud.gov.co/compilacion/docs/resolucion_minsaludps_3280_2018.htm)
+7. CONPES 3975 de 2019. [MinTIC — Normograma](https://normograma.mintic.gov.co/mintic/compilacion/docs/conpes_dnp_3975_2019.htm)
+8. ACM Code of Ethics and Professional Conduct (2018). [acm.org](https://www.acm.org/code-of-ethics)
+9. UPME, Resolución 762 de 2023 (factor de emisión del SIN). [upme.gov.co](https://www1.upme.gov.co/Normatividad/762_2023.pdf)
+10. Green Software Foundation, *Principles of Green Software Engineering*. [learn.greensoftware.foundation](https://learn.greensoftware.foundation/)
 
 ### 6.5 Sostenibilidad de la decisión: escenario de crecimiento
 
-_Pendiente para la entrega del 23 de noviembre._
+Si el programa incorpora el tamizaje de **hipertensión arterial** y los resultados diarios **se duplican** (≈ 2,9 millones):
+
+| Operación | Estrategia | Efecto de duplicar n | Tiempo estimado | ¿Sigue cabiendo? |
+|---|---|---|---|---|
+| Ops. 1 + 2 | Actual Θ(n²) | × 4 | 7 h → **≈ 28 h** | **No** (ni en un día) |
+| Ops. 1 + 2 | Referencia hash + montículo | ≈ × 2 | 0,36 s → ≈ 0,8 s | Sí |
+| Op. 3 | PD Θ(n log n) (si las solicitudes se duplican a 240) | ≈ × 2,2 | 54 µs → ≈ 0,12 ms por subregión | Sí |
+| Op. 4 | Actual Θ(n³) (si se duplican los lotes por laboratorio) | × 8 | 3 días → **≈ 24 días** | No |
+| Op. 4 | Kadane Θ(n) | × 2 | 0,49 s → ≈ 1 s | Sí |
+
+Con las estrategias actuales, el crecimiento haría el proceso **inviable**. Con las recomendadas, el mismo servidor de 380 W absorbe el doble de volumen **sin comprar hardware**. Eso evita también la huella ambiental de fabricar y operar más equipos.
+
+Una estrategia lineal o casi lineal es la que mejor **anticipa** el crecimiento futuro del programa (nuevas enfermedades, más municipios, más laboratorios).
 
 ---
 
