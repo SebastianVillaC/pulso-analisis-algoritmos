@@ -1,12 +1,12 @@
 # Plataforma Pulso: consolidación, priorización y agendamiento del tamizaje de diabetes
 
-**Informe técnico — Proyecto final de Análisis de Algoritmos (2026-2)**
+**Informe técnico. Proyecto final de Análisis de Algoritmos (2026-2)**
 
 | | |
 | --- | --- |
-| **Caso asignado** | Caso 2 — Plataforma Pulso (Secretaría de Salud departamental) |
+| **Caso asignado** | Caso 2: Plataforma Pulso (Secretaría de Salud departamental) |
 | **Integrantes** | Sebastian Villa Castillo · Jhon Eduardo Zabala Garzon · Brayan Alexis Arango Orrego · David Morales Vargas |
-| **Operaciones trabajadas** | Op. 3 — Programación de las jornadas de las unidades móviles (Laboratorio 4) · Op. 4 — Vigilancia de la calidad de los laboratorios |
+| **Operaciones trabajadas** | Op. 3: programación de las jornadas de las unidades móviles (Laboratorio 4) · Op. 4: vigilancia de la calidad de los laboratorios |
 
 **Resumen.**
 - **Op. 3 (jornadas):** la Secretaría asigna hoy por orden de llegada. Proponemos programación dinámica de intervalos ponderados, que maximiza los pacientes de alto riesgo atendidos. En meses sintéticos atiende un **36 % más de pacientes** que la regla actual, en menos de un milisegundo por mes.
@@ -19,7 +19,7 @@
 
 ### 1.1 Descripción del problema computacional
 
-La Secretaría recibe cada día unos **1.450.000 resultados** de tamizaje enviados por 290 laboratorios e IPS. Con ellos hace cuatro cosas:
+En un día típico la Secretaría tiene unos **1.450.000 resultados** de tamizaje pendientes de gestión, enviados por 290 laboratorios e IPS. Con ellos hace cuatro cosas:
 1. **Consolidar** un resultado por paciente.
 2. Armar la **lista diaria de 9.000 llamadas**, en orden de riesgo.
 3. **Programar las jornadas** de 9 unidades móviles.
@@ -34,7 +34,7 @@ El problema computacional es elegir, para cada operación, una estrategia que:
 
 ### 1.2 Entradas, salidas y restricciones
 
-#### Operación 3 — Programación de las jornadas de las unidades móviles
+#### Operación 3: programación de las jornadas de las unidades móviles
 
 | Elemento | Descripción |
 | --- | --- |
@@ -49,7 +49,7 @@ La sección 4.1 muestra además que optimizar pacientes **no cuesta más** que o
 
 Quién debe tomar esta decisión se discute en la sección 6.2.
 
-#### Operación 4 — Vigilancia de la calidad de los laboratorios
+#### Operación 4: vigilancia de la calidad de los laboratorios
 
 | Elemento | Descripción |
 |---|---|
@@ -153,7 +153,7 @@ Nuestra extrapolación de las ops. 1 + 2 (5,1 h) es del mismo orden que las 7 h 
 | Tabla hash `documento → posición` | Op. 1 (referencia) | Busca un paciente en Θ(1) esperado, en lugar de recorrer la lista |
 | Montículo de tamaño k | Op. 2 (referencia) | Selecciona los 9.000 de mayor riesgo en Θ(n log k) sin ordenar todo |
 
-### 2.2 Operación 3 — Estrategias
+### 2.2 Operación 3: estrategias
 
 | Estrategia | Familia | Objetivo | Archivo |
 |---|---|---|---|
@@ -250,11 +250,11 @@ SELECCIONAR-JORNADAS(S)
 - [`pruebas.py`](src/jornadas_unidades/pruebas.py) verifica exactamente este resultado.
 
 **Cómo reduce el consumo energético.**
-- Frente a la única forma de garantizar el óptimo sin PD, que es la búsqueda exhaustiva con Θ(n·2ⁿ), la PD pasa de un tiempo literalmente inalcanzable a microsegundos (sección 4.1).
+- Frente a la única forma de garantizar el óptimo sin PD, que es la búsqueda exhaustiva con Θ(n·2ⁿ), la PD pasa de un tiempo imposible de alcanzar a microsegundos (sección 4.1).
 - Frente a la regla actual también es más rápida, porque es Θ(n log n) frente a Θ(n²).
 - Y permite automatizar un trabajo que hoy se hace a mano en hojas de cálculo.
 
-### 2.3 Operación 4 — Estrategias
+### 2.3 Operación 4: estrategias
 
 | Estrategia | Familia | Complejidad | Archivo |
 |---|---|---|---|
@@ -455,7 +455,7 @@ Medición: [`datos.py`](src/jornadas_unidades/datos.py) y [`medicion.py`](src/jo
 | 80 | 1.660,2 (31,9) | 1.217,6 (30,2) | 1.329,7 (33,1) | **+36,4 %** |
 | 120 | 2.484,7 (47,6) | 1.824,2 (45,0) | 1.986,9 (49,1) | **+36,2 %** |
 
-- El voraz hace **más jornadas** que la PD (49,1 frente a 47,6), pero atiende **500 pacientes menos**. Es la evidencia empírica de que los dos criterios son problemas distintos.
+- El voraz hace **más jornadas** que la PD (49,1 frente a 47,6), pero atiende **500 pacientes menos**. Esto muestra con datos que los dos criterios son problemas distintos.
 - En el mes más cargado, la PD atiende en promedio **≈ 660 pacientes de alto riesgo más por subregión**, unos 5.900 más al mes en las 9 subregiones. Es una estimación con datos sintéticos.
 
 #### Lo medido frente a lo esperado
@@ -476,7 +476,7 @@ Medición: [`datos.py`](src/jornadas_unidades/datos.py) y [`medicion.py`](src/jo
 - **Exhaustiva:** el factor exponencial **sí aparece**. Al sumar 10 solicitudes el trabajo se multiplica por más de 1.000 (≈ 2¹⁰), y al sumar 12, por más de 4.600. La curva es casi vertical en la gráfica.
   - Sale **por debajo** del peor caso n·2ⁿ porque la implementación abandona cada subconjunto en el primer cruce.
   - Con solicitudes que se cruzan a menudo, en promedio revisa pocos elementos por subconjunto. El factor n del peor caso solo aparecería si casi ningún subconjunto tuviera cruces.
-  - Por eso lo medido se parece más a c·2ⁿ multiplicado por un factor que crece lentamente. Usar n·2ⁿ para extrapolar es, por lo tanto, una cota conservadora en la dirección correcta: hace más largo el tiempo de la exhaustiva y no favorece a la PD.
+  - Por eso lo medido se parece más a c·2ⁿ multiplicado por un factor que crece lentamente. Por eso, extrapolar con n·2ⁿ da para la exhaustiva un tiempo algo mayor que el real, lo que no favorece a la PD.
 
 #### Escala real, ventana operativa y energía
 
@@ -495,7 +495,7 @@ Medición: [`datos.py`](src/jornadas_unidades/datos.py) y [`medicion.py`](src/jo
 - La exhaustiva **no terminaría nunca en la práctica**.
   - Con n = 40, el mes más liviano, ya tarda ≈ 126 h, así que ni ese mes cabe en la ventana.
   - Con n = 120 tardaría unas 3,8 × 10¹² veces la edad del universo.
-  - Su consumo teórico (≈ 1,9 × 10²⁸ kWh al año) carece de sentido físico: simplemente no es una opción. Por eso existe hoy una regla simplificada.
+  - Su consumo teórico (≈ 1,9 × 10²⁸ kWh al año) no tiene sentido físico: la exhaustiva no es una opción real.
 - **Diferencia de energía entre la regla actual y la PD:** ≈ 0,38 kW × (0,95 − 0,48) ms × 12 meses ≈ **6 × 10⁻⁷ kWh al año**, despreciable. Son estimaciones; el cálculo es kWh = kW × h.
 - En esta operación el beneficio **no es energético sino de resultado**: +36 % de pacientes de alto riesgo valorados con el mismo cómputo. El ahorro de recursos real está en dos lugares:
   1. Hace viable un óptimo exacto que con fuerza bruta sería imposible.
@@ -633,11 +633,11 @@ Ambos casos se verifican en las pruebas.
 - La diferencia entre ellas es únicamente de costo: 290 días, 1,75 h, 8 s o 0,5 s para los 290 laboratorios.
 - Dividir y vencer es una mejora enorme sobre la actual, pero Kadane es 17 veces más rápido, usa memoria constante y es más fácil de mantener.
 
-Kadane tiene una ventaja que **anticipa una necesidad futura**: como solo guarda E y el mejor tramo, puede **actualizarse con cada lote nuevo en Θ(1)**. Así, la vigilancia podría generar una alerta en cuanto el exceso acumulado de un laboratorio supere un umbral, en lugar de esperar al cierre del mes.
+Kadane además sirve a futuro: como solo guarda E y el mejor tramo, puede **actualizarse con cada lote nuevo en Θ(1)**. Así, la vigilancia podría generar una alerta en cuanto el exceso acumulado de un laboratorio supere un umbral, en lugar de esperar al cierre del mes.
 
 **Comparación entre las dos operaciones.**
 
-| | Op. 3 — Jornadas | Op. 4 — Vigilancia |
+| | Op. 3 (jornadas) | Op. 4 (vigilancia) |
 |---|---|---|
 | Problema | Intervalos ponderados | Subarreglo máximo |
 | Estrategia recomendada | Programación dinámica, Θ(n log n) | Programación dinámica (Kadane), Θ(n) |
@@ -665,9 +665,9 @@ Con estas estrategias, el proceso nocturno pasaría de ~7 h a segundos, y las do
 | Op. 4 (actual: 12/año; propuesta: 365/año) | 328,3 | 0,019 | 328,3 |
 | **Total** | **≈ 1.299** | **≈ 0,03** | **≈ 1.299 kWh/año** |
 
-Son estimaciones de la energía que consume el cómputo, calculadas como 0,38 kW × horas. Dos precisiones:
+Son estimaciones de la energía que consume el cómputo, calculadas como 0,38 kW × horas. Hay que aclarar dos cosas:
 1. Si el servidor dedicado permanece encendido igual, el ahorro real depende de que se apague o se use para otras tareas. Lo que se libera son ~7 h diarias de capacidad.
-2. Con el factor de emisión del Sistema Interconectado Nacional publicado por la UPME (0,374 t CO₂/MWh, Resolución 762 de 2023, modificada por la Resolución 705 de 2024 [9]), los ~1.299 kWh equivalen a **≈ 486 kg de CO₂ al año**. El factor se actualiza cada año; es un orden de magnitud.
+2. Con el factor de emisión para inventarios del Sistema Interconectado Nacional que fijó la UPME para 2022 (0,112 t CO₂eq/MWh, Resolución 762 de 2023, modificada por la Resolución 705 de 2024 [9]), los ~1.299 kWh equivalen a **≈ 145 kg de CO₂ al año**. El factor cambia cada año, así que la cifra es solo un orden de magnitud.
 
 ### 6.2 Preguntas de impacto del caso
 
@@ -721,19 +721,20 @@ Son estimaciones de la energía que consume el cómputo, calculadas como 0,38 kW
 | **CONPES 3975 de 2019**, política nacional de transformación digital e inteligencia artificial [7] | Uso de tecnologías digitales en el sector público para generar valor social | Algoritmos exactos, explicables y verificables, en lugar de modelos opacos |
 | **Código de Ética de la ACM (2018)** [8] | Evitar daños (1.2), ser honesto sobre las limitaciones (1.3), ser justo y no discriminar (1.4) | El criterio y sus riesgos de equidad están declarados; los límites del modelo (una unidad por subregión, datos sintéticos) se informan explícitamente |
 | **Principios de software verde** (Green Software Foundation) [10] | Eficiencia energética: hacer el mismo trabajo con menos energía | Elegir la estrategia de menor complejidad es la principal palanca de eficiencia (sección 6.1) |
-| **ISO/IEC 27001** (buena práctica) | Gestión de la seguridad de la información | Recomendación operativa: cifrado en reposo, control de acceso por rol, registro de auditoría de cada ejecución |
+| **ISO/IEC 27001:2022** (buena práctica) [11] | Gestión de la seguridad de la información | Recomendación operativa: cifrado en reposo, control de acceso por rol, registro de auditoría de cada ejecución |
 
 **Fuentes.**
-1. Ley 1581 de 2012. [Alcaldía de Bogotá — Régimen Legal](https://www.alcaldiabogota.gov.co/sisjur/normas/Norma1.jsp?i=49981)
-2. Decreto 1377 de 2013 (reglamenta parcialmente la Ley 1581; compilado en el Decreto 1074 de 2015). [Cancillería — Normograma](https://www.cancilleria.gov.co/normograma/compilacion/docs/arbol/8514.htm)
-3. Ley 1751 de 2015. [Función Pública — Gestor Normativo](https://www.funcionpublica.gov.co/eva/gestornormativo/norma.php?i=60733)
-4. Ley 2015 de 2020. [Función Pública — Gestor Normativo](https://www.funcionpublica.gov.co/eva/gestornormativo/norma.php?i=105472)
-5. Resolución 1995 de 1999. [Unidad para las Víctimas (copia)](https://www.unidadvictimas.gov.co/wp-content/uploads/Documentos/resoluciones/RESOLUCI%c3%93N_1995_1999.pdf); Resolución 839 de 2017. [Supersalud — Normograma](https://normograma.supersalud.gov.co/compilacion/docs/resolucion_minsaludps_0839_2017.htm)
-6. Resolución 3280 de 2018. [Supersalud — Normograma](https://normograma.supersalud.gov.co/compilacion/docs/resolucion_minsaludps_3280_2018.htm)
-7. CONPES 3975 de 2019. [MinTIC — Normograma](https://normograma.mintic.gov.co/mintic/compilacion/docs/conpes_dnp_3975_2019.htm)
+1. Ley 1581 de 2012. [Alcaldía de Bogotá, Régimen Legal](https://www.alcaldiabogota.gov.co/sisjur/normas/Norma1.jsp?i=49981)
+2. Decreto 1377 de 2013 (reglamenta parcialmente la Ley 1581; compilado en el Decreto 1074 de 2015). [Cancillería, Normograma](https://www.cancilleria.gov.co/normograma/compilacion/docs/arbol/8514.htm)
+3. Ley 1751 de 2015. [Función Pública, Gestor Normativo](https://www.funcionpublica.gov.co/eva/gestornormativo/norma.php?i=60733)
+4. Ley 2015 de 2020. [Función Pública, Gestor Normativo](https://www.funcionpublica.gov.co/eva/gestornormativo/norma.php?i=105472)
+5. Resolución 1995 de 1999. [Unidad para las Víctimas (copia)](https://www.unidadvictimas.gov.co/wp-content/uploads/Documentos/resoluciones/RESOLUCI%c3%93N_1995_1999.pdf); Resolución 839 de 2017. [Supersalud, Normograma](https://normograma.supersalud.gov.co/compilacion/docs/resolucion_minsaludps_0839_2017.htm)
+6. Resolución 3280 de 2018. [Supersalud, Normograma](https://normograma.supersalud.gov.co/compilacion/docs/resolucion_minsaludps_3280_2018.htm)
+7. CONPES 3975 de 2019. [MinTIC, Normograma](https://normograma.mintic.gov.co/mintic/compilacion/docs/conpes_dnp_3975_2019.htm)
 8. ACM Code of Ethics and Professional Conduct (2018). [acm.org](https://www.acm.org/code-of-ethics)
-9. UPME, Resolución 762 de 2023 (factor de emisión del SIN). [upme.gov.co](https://www1.upme.gov.co/Normatividad/762_2023.pdf)
+9. UPME, Resolución 762 de 2023, modificada por la Resolución 705 de 2024 (factor de emisión del SIN para 2022). [CREG, Gestor Normativo](https://gestornormativo.creg.gov.co/gestor/entorno/docs/resolucion_upme_0762_2023.htm)
 10. Green Software Foundation, *Principles of Green Software Engineering*. [learn.greensoftware.foundation](https://learn.greensoftware.foundation/)
+11. ISO/IEC 27001:2022, *Information security management systems. Requirements*. [iso.org](https://www.iso.org/standard/27001)
 
 ### 6.5 Sostenibilidad de la decisión: escenario de crecimiento
 
@@ -749,7 +750,7 @@ Si el programa incorpora el tamizaje de **hipertensión arterial** y los resulta
 
 Con las estrategias actuales, el crecimiento haría el proceso **inviable**. Con las recomendadas, el mismo servidor de 380 W absorbe el doble de volumen **sin comprar hardware**. Eso evita también la huella ambiental de fabricar y operar más equipos.
 
-Una estrategia lineal o casi lineal es la que mejor **anticipa** el crecimiento futuro del programa (nuevas enfermedades, más municipios, más laboratorios).
+Por eso conviene elegir estrategias lineales o casi lineales: son las que mejor aguantan el crecimiento del programa (nuevas enfermedades, más municipios, más laboratorios).
 
 ---
 
@@ -762,10 +763,10 @@ Una estrategia lineal o casi lineal es la que mejor **anticipa** el crecimiento 
 4. Las mediciones confirmaron la teoría:
    - factores al duplicar de ×2,0 (Θ(n)), ×2,1 (Θ(n log n)), ×4,0 (Θ(n²)) y ×8 (Θ(n³));
    - un crecimiento de más de ×1.000 al sumar 10 elementos en la exhaustiva.
-5. El proceso propuesto ahorraría **≈ 1.299 kWh al año** (≈ 486 kg de CO₂) y absorbería un crecimiento del doble del volumen sin hardware adicional.
+5. El proceso propuesto ahorraría **≈ 1.299 kWh al año** (≈ 145 kg de CO₂) y absorbería un crecimiento del doble del volumen sin hardware adicional.
 
 **Lecciones aprendidas.**
-- Una estrategia "rápida" solo es aceptable si se **verifica contra una exacta**. Las pruebas aleatorias contra la exhaustiva detectaron inmediatamente los errores de convención en los extremos de los intervalos.
+- Una estrategia "rápida" solo es aceptable si se **verifica contra una exacta**. Las pruebas aleatorias contra la exhaustiva sirven para encontrar errores difíciles de ver a mano, como confundir `<` con `<=` en los extremos de los intervalos.
 - Contar operaciones, además de medir tiempo, separa la complejidad del ruido de la máquina. Los conteos coinciden con la teoría casi exactamente; los tiempos fluctúan.
 - Antes de extrapolar hay que **justificar la forma de la curva**. Una regla de tres con una curva exponencial o cúbica da resultados absurdos.
 - No todas las mejoras son energéticas: en la op. 3 la ganancia está en las personas atendidas, y hay que decirlo así.
@@ -802,10 +803,3 @@ python src/linea_base/medicion.py                 # ops. 1 y 2, ~10 s
 - Cada `medicion.py` genera sus datos sintéticos con semilla fija (2026 + n), mediante el `datos.py` de su carpeta.
 - Escribe sus gráficas en `graficas/<operacion>/` y sus tablas en `resultados/<operacion>/` (`mediciones.csv` y `resumen.md`).
 - Los tiempos absolutos dependen del equipo; la forma de las curvas, los factores al duplicar n y los conteos de operaciones no.
-
-**PDF del informe.** [`informe.pdf`](informe.pdf) se genera a partir de este README, con el mismo contenido. Requiere Google Chrome o Chromium:
-
-```bash
-pip install markdown-it-py
-python herramientas/generar_pdf.py
-```
